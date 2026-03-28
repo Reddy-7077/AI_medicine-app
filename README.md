@@ -1,14 +1,24 @@
-# RunAnywhere Web Starter App
+# MedSafe On-Device AI Medicine App
 
-A minimal React + TypeScript starter app demonstrating **on-device AI in the browser** using the [`@runanywhere/web`](https://www.npmjs.com/package/@runanywhere/web) SDK. All inference runs locally via WebAssembly — no server, no API key, 100% private.
+MedSafe is a React + TypeScript app built with the RunAnywhere SDK to demonstrate private, offline-capable healthcare assistance fully in the browser.
 
-## Features
+All model inference runs on-device via WebAssembly and WebGPU/CPU acceleration. No medication or symptom data is sent to cloud servers.
+
+## Why On-Device AI
+
+- Privacy: sensitive medication and symptom data remains on the user device.
+- Offline support: core features continue working without internet.
+- Low latency: no network roundtrip for AI responses.
+- Data control: users can export and clear local history at any time.
+
+## App Features
 
 | Tab | What it does |
 |-----|-------------|
-| **Chat** | Stream text from an on-device LLM (LFM2 350M) |
-| **Vision** | Point your camera and describe what the VLM sees (LFM2-VL 450M) |
-| **Voice** | Speak naturally — VAD detects speech, STT transcribes, LLM responds, TTS speaks back |
+| **Home** | Medication interaction checker using local LLM generation |
+| **Voice** | Voice symptom reporter using on-device VAD + STT + LLM + TTS |
+| **History** | Local-only AI interaction history with per-item delete and clear-all |
+| **Profile** | Privacy architecture summary, local record count, export/clear controls |
 
 ## Quick Start
 
@@ -28,43 +38,44 @@ Open [http://localhost:5173](http://localhost:5173). Models are downloaded on fi
   └── TypeScript API (TextGeneration, STT, TTS, VAD, VLM, VoicePipeline)
 ```
 
-The app imports everything from `@runanywhere/web`:
+MedSafe uses the RunAnywhere SDK APIs:
 
 ```typescript
-import { RunAnywhere, SDKEnvironment } from '@runanywhere/web';
+import { RunAnywhere, SDKEnvironment, VoicePipeline } from '@runanywhere/web';
 import { TextGeneration, VLMWorkerBridge } from '@runanywhere/web-llamacpp';
 
 await RunAnywhere.initialize({ environment: SDKEnvironment.Development });
 
-// Stream LLM text
+// Stream medication safety response
 const { stream } = await TextGeneration.generateStream('Hello!', { maxTokens: 200 });
 for await (const token of stream) { console.log(token); }
 
-// VLM: describe an image
-const result = await VLMWorkerBridge.shared.process(rgbPixels, width, height, 'Describe this.');
+// Optional VLM usage for label scanning
+const result = await VLMWorkerBridge.shared.process(rgbPixels, width, height, 'Extract medication details.');
 ```
 
 ## Project Structure
 
 ```
 src/
-├── main.tsx              # React root
-├── App.tsx               # Tab navigation (Chat | Vision | Voice)
-├── runanywhere.ts        # SDK init + model catalog + VLM worker
-├── workers/
-│   └── vlm-worker.ts     # VLM Web Worker entry (2 lines)
+├── main.tsx                          # React root
+├── App.tsx                           # App shell + tab routing + local history store
+├── runanywhere.ts                    # SDK init + model catalog + VLM worker
 ├── hooks/
-│   └── useModelLoader.ts # Shared model download/load hook
+│   ├── useModelLoader.ts
+│   └── useMultiModelLoader.ts        # Multi-model loading for full voice pipeline
 ├── components/
-│   ├── ChatTab.tsx        # LLM streaming chat
-│   ├── VisionTab.tsx      # Camera + VLM inference
-│   ├── VoiceTab.tsx       # Full voice pipeline
-│   └── ModelBanner.tsx    # Download progress UI
+│   ├── MedicationInteractionChecker.tsx
+│   ├── VoiceSymptomReporter.tsx
+│   ├── PillLabelScanner.tsx
+│   ├── ModelDownloadScreen.tsx
+│   ├── HistoryTab.tsx
+│   └── ProfileTab.tsx
 └── styles/
-    └── index.css          # Dark theme CSS
+  └── index.css
 ```
 
-## Adding Your Own Models
+## Model Setup
 
 Edit the `MODELS` array in `src/runanywhere.ts`:
 
@@ -80,7 +91,14 @@ Edit the `MODELS` array in `src/runanywhere.ts`:
 }
 ```
 
-Any GGUF model compatible with llama.cpp works for LLM/VLM. STT/TTS/VAD use sherpa-onnx models.
+The default setup expects these models:
+
+- `silero-vad-v5`
+- `sherpa-onnx-whisper-tiny.en`
+- `lfm2-350m-q4_k_m`
+- `vits-piper-en_US-lessac-medium`
+
+You can change model IDs in `src/App.tsx` and catalog details in `src/runanywhere.ts`.
 
 ## Deployment
 
